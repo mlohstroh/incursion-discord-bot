@@ -49,7 +49,7 @@ func (server *Server) HandleIncursion(session *discordgo.Session, message *disco
 	}
 
 	_, err := session.ChannelMessageSend(message.ChannelID, buffer.String())
-	
+
 	if err != nil {
 		log.Print(err)
 	}
@@ -152,10 +152,6 @@ func (server *Server) SetBroadcastChannel(session *discordgo.Session, message *d
 }
 
 func (server *Server) TestBroadcast(session *discordgo.Session, message *discordgo.MessageCreate) {
-	msg := strings.Replace(message.Content, "!broadcast", "", -1)
-
-	server.BroadcastMessage(msg)
-}
 	msg := strings.Replace(message.Content, "!broadcast", "", -1)
 
 	server.BroadcastMessage(msg)
