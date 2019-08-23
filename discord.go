@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/go-redis/redis"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/go-redis/redis"
 )
 
 var (
@@ -49,11 +50,11 @@ func (server *Server) OnMessageCreate(s *discordgo.Session, message *discordgo.M
 		return
 	}
 
-	if Exists(server.Config.DiscordIncursionChannels, message.ChannelID) {
-		if strings.HasPrefix(message.Content, "!") {
-			split := strings.Split(message.Content, " ")
-			commandCenter.ProcessCommand(split[0], s, message)
-		}
+	log.Printf("Message received %v", message.Content)
+
+	if strings.HasPrefix(message.Content, "!") {
+		split := strings.Split(message.Content, " ")
+		commandCenter.ProcessCommand(split[0], s, message)
 	}
 }
 
