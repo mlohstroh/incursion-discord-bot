@@ -5,7 +5,9 @@ import (
 	"log"
 	"os"
 	"strings"
+	"bytes"
 
+	"errors"
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis"
 )
@@ -71,14 +73,22 @@ func (server *Server) OnGuildLeave(s *discordgo.Session, event *discordgo.GuildD
 
 func (server *Server) BroadcastMessage(message string) {
 	for id, _ := range Guilds {
-		channel, err := GetBroadcastChannelForGuild(server.Redis, id)
+		_, err := GetBroadcastChannelForGuild(server.Redis, id)
 
 		if err != nil {
 			log.Printf("Error on broadcast. Guild has not set up broadcast channel!")
 			continue
 		}
 
-		server.SendMessage(channel, message)
+		buffer := bytes.NewBufferString(message)
+
+		// Append any mentions...
+		for _, mention := range server.GetAdminsForGuild(id) {
+			buffer.WriteString(fmt.Sprintf(" <@%v> ", mention))
+		}
+
+		log.Printf("I want to print out this. %v", buffer.String())
+		//server.SendMessage(channel, buffer.String())
 	}
 }
 
@@ -108,4 +118,15 @@ func GetBroadcastChannelForGuild(redis *redis.Client, guildId string) (string, e
 
 func SetBroadcastChannelForGuild(redis *redis.Client, guildId, channelId string) {
 	redis.Set(fmt.Sprintf("discord:%v:broadcast_channel", guildId), channelId, 0)
+}
+
+func GetGuildIdForChannel(channelId string) (string, error) {
+	for id, guild := range Guilds {
+		for _, channel := range guild.Channels {
+			if channel.ID == channelId {
+				return id, nil
+			}
+		}
+	}
+	return "", errors.New("no guild found for known channel")
 }

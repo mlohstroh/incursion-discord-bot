@@ -107,11 +107,6 @@ func (server *Server) checkIncursions() {
 
 	// Did any new info come through?
 	if buffer.Len() > 0 {
-		// Append any mentions...
-		for _, mention := range server.Config.DiscordAdmins {
-			buffer.WriteString(fmt.Sprintf("<@%v> ", mention))
-		}
-
 		msg := buffer.String()
 
 		if len(msg) > 0 {

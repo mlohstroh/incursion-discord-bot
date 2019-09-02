@@ -1,10 +1,4 @@
 {
-    "discord_incursion_channels": [
-        "489679360547225611"
-    ],
-    "discord_admins": [
-        "163874702593490944"
-    ],
     "default_staging_system_id": 30004759,
     "security_status_threshold": 0.4
 }

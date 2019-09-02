@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
-	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
+	"github.com/joho/godotenv"
 )
 
 type Server struct {
@@ -32,7 +33,6 @@ func main() {
 	}
 	config := ParseConfig()
 	server := NewServer(config)
-	server.PostConfigLoad()
 
 	discordWait := make(chan bool)
 

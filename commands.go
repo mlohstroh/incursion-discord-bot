@@ -21,7 +21,6 @@ func (server *Server) RegisterCommands() {
 	commandCenter.Commands = make(map[string]DiscordCommand)
 	commandCenter.Commands["!incursions"] = server.HandleIncursion
 	commandCenter.Commands["!status"] = server.HandleTqStatus
-	commandCenter.Commands["!testping"] = server.TestPing
 	commandCenter.Commands["!instructions"] = server.GetInstructions
 	commandCenter.Commands["!setinstructions"] = server.SetInstructions
 	commandCenter.Commands["!setadmin"] = server.SetAdmin
@@ -31,6 +30,12 @@ func (server *Server) RegisterCommands() {
 }
 
 func (commandCenter *CommandCenter) ProcessCommand(command string, session *discordgo.Session, message *discordgo.MessageCreate) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error when processing command! %v\n", r)
+		}
+	}()
+
 	if commandCenter.Commands[command] != nil {
 		commandCenter.Commands[command](session, message)
 	}
@@ -68,23 +73,18 @@ func (server *Server) HandleTqStatus(session *discordgo.Session, message *discor
 	session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("Tranquility is online with %v players.", tq.Players))
 }
 
-func (server *Server) TestPing(session *discordgo.Session, message *discordgo.MessageCreate) {
-	messages := "this was a mistake.\n"
-	buffer := bytes.NewBufferString(messages)
-
-	for _, mention := range server.Config.DiscordAdmins {
-		buffer.WriteString(fmt.Sprintf("<@%v> ", mention))
-	}
-
-	for _, channel := range server.Config.DiscordIncursionChannels {
-		server.SendMessage(channel, buffer.String())
-	}
-}
-
 func (server *Server) GetInstructions(session *discordgo.Session, message *discordgo.MessageCreate) {
-	cmd := server.Redis.Get("bot:instructions")
+	guildId, err := GetGuildIdForChannel(message.ChannelID)
+
+	if err != nil {
+		log.Printf("Unable to get instructions. %v", err)
+		server.SendMessage(message.ChannelID, fmt.Sprintf("An error occurred! %v, Please contact the maintainer of this bot.", err))
+		return
+	}
+
+	cmd := server.Redis.Get(fmt.Sprintf("bot:%v:instructions", guildId))
 	if cmd.Err() != nil {
-		log.Printf("Unable to get instructions. Error: %v", cmd.Err())
+		log.Printf("Unable to get instructions. Error: %v\n", cmd.Err())
 		server.SendDirectMessage(message.Author, "No instructions are set")
 		return
 	}
@@ -94,7 +94,17 @@ func (server *Server) GetInstructions(session *discordgo.Session, message *disco
 
 func (server *Server) SetInstructions(session *discordgo.Session, message *discordgo.MessageCreate) {
 
-	if !Exists(server.Config.DiscordAdmins, message.Author.ID) {
+	guildId, err := GetGuildIdForChannel(message.ChannelID)
+
+	if err != nil {
+		log.Printf("Unable to set instructions. %v", err)
+		server.SendMessage(message.ChannelID, fmt.Sprintf("An error occurred! %v, Please contact the maintiner of this bot.", err))
+		return
+	}
+
+	admins := server.GetAdminsForGuild(guildId)
+
+	if !Exists(admins, message.Author.ID) {
 		// Invalid admin
 		server.SendMessage(message.ChannelID, "Please don't try to set instructions if you aren't authorized")
 		return
@@ -102,10 +112,10 @@ func (server *Server) SetInstructions(session *discordgo.Session, message *disco
 
 	instructions := strings.Replace(message.Content, "!setinstructions", "", -1)
 
-	cmd := server.Redis.Set("bot:instructions", instructions, 0)
+	cmd := server.Redis.Set(fmt.Sprintf("bot:%v:instructions", guildId), instructions, 0)
 
 	if cmd.Err() != nil {
-		log.Printf("Error setting instructions %v", cmd.Err())
+		log.Printf("Error setting instructions %v\n", cmd.Err())
 		server.SendMessage(message.ChannelID, fmt.Sprintf("Unable to set instructions. Error: %v", cmd.Err()))
 		return
 	}
@@ -115,7 +125,16 @@ func (server *Server) SetInstructions(session *discordgo.Session, message *disco
 
 func (server *Server) SetAdmin(session *discordgo.Session, message *discordgo.MessageCreate) {
 	adminId := strings.TrimSpace(strings.Replace(message.Content, "!setadmin", "", -1))
-	server.Redis.SAdd("incursions:admins", adminId)
+
+	guildId, err := GetGuildIdForChannel(message.ChannelID)
+
+	if err != nil {
+		log.Printf("Unable to set admin!. %v\n", err)
+		server.SendMessage(message.ChannelID, fmt.Sprintf("An error occurred! %v, Please contact the maintainer of this bot.", err))
+		return
+	}
+
+	server.Redis.SAdd(fmt.Sprintf("incursions:%v:admins", guildId), adminId)
 
 	server.SendMessage(message.ChannelID, fmt.Sprintf("<@%v> added as admin", adminId))
 }
@@ -123,7 +142,15 @@ func (server *Server) SetAdmin(session *discordgo.Session, message *discordgo.Me
 func (server *Server) RemoveAdmin(session *discordgo.Session, message *discordgo.MessageCreate) {
 	adminId := strings.TrimSpace(strings.Replace(message.Content, "!removeadmin", "", -1))
 
-	server.Redis.SRem("incursions:admins", adminId)
+	guildId, err := GetGuildIdForChannel(message.ChannelID)
+
+	if err != nil {
+		log.Printf("Unable to remove admin!. %v\n", err)
+		server.SendMessage(message.ChannelID, fmt.Sprintf("An error occurred! %v, Please contact the maintainer of this bot.", err))
+		return
+	}
+
+	server.Redis.SRem(fmt.Sprintf("incursions:%v:admins", guildId), adminId)
 
 	server.SendMessage(message.ChannelID, fmt.Sprintf("<@%v> removed as admin", adminId))
 }
