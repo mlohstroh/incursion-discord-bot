@@ -87,8 +87,7 @@ func (server *Server) BroadcastMessage(message string) {
 			buffer.WriteString(fmt.Sprintf(" <@%v> ", mention))
 		}
 
-		log.Printf("I want to print out this. %v", buffer.String())
-		//server.SendMessage(channel, buffer.String())
+		server.SendMessage(channel, buffer.String())
 	}
 }
 
